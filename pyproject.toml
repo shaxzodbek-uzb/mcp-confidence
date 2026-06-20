@@ -9,7 +9,7 @@ description = "A drop-in confidence gate for LLM agents: turn token logprobs int
 readme = "README.md"
 requires-python = ">=3.10"
 license = { text = "MIT" }
-authors = [{ name = "Shaxzodbek Qambaraliyev", email = "dev@blaze.uz" }]
+authors = [{ name = "Shaxzodbek Qambaraliyev", email = "shaxzodbek@blaze.uz" }]
 keywords = [
     "llm",
     "confidence",
