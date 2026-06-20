@@ -1,0 +1,63 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "mcp-confidence"
+version = "0.1.0"
+description = "A drop-in confidence gate for LLM agents: turn token logprobs into an accept / verify / ask-a-human routing decision, with honest per-model calibration."
+readme = "README.md"
+requires-python = ">=3.10"
+license = { text = "MIT" }
+authors = [{ name = "Shaxzodbek Qambaraliyev", email = "dev@blaze.uz" }]
+keywords = [
+    "llm",
+    "confidence",
+    "logprobs",
+    "mcp",
+    "calibration",
+    "hitl",
+    "agents",
+    "local-llm",
+]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+    "Topic :: Software Development :: Libraries :: Python Modules",
+    "Typing :: Typed",
+]
+dependencies = []
+
+[project.optional-dependencies]
+mcp = ["mcp>=1.2", "openai>=1.40"]
+openai = ["openai>=1.40"]
+dev = ["pytest>=8", "ruff>=0.6"]
+
+[project.urls]
+Homepage = "https://github.com/shaxzodbek-uzb/mcp-confidence"
+Repository = "https://github.com/shaxzodbek-uzb/mcp-confidence"
+Issues = "https://github.com/shaxzodbek-uzb/mcp-confidence/issues"
+
+[project.scripts]
+mcp-confidence = "mcp_confidence.cli:main"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/mcp_confidence"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py310"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

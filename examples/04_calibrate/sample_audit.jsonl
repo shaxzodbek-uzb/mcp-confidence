@@ -1,0 +1,25 @@
+{"event": "worker_delegated", "ts": "2026-06-20T09:00:01Z", "source": "summarize", "logprobs_available": true, "mean_logprob": -0.21, "score": -0.34, "band": "high", "token_count": 64, "human_label": "good"}
+{"event": "worker_delegated", "ts": "2026-06-20T09:01:12Z", "source": "summarize", "logprobs_available": true, "mean_logprob": -0.38, "score": -0.55, "band": "high", "token_count": 88, "human_label": "good"}
+{"event": "worker_delegated", "ts": "2026-06-20T09:02:33Z", "source": "rewrite", "logprobs_available": true, "mean_logprob": -0.62, "score": -0.91, "band": "high", "token_count": 51, "human_label": "good"}
+{"event": "worker_delegated", "ts": "2026-06-20T09:03:44Z", "source": "summarize", "logprobs_available": true, "mean_logprob": -0.74, "score": -1.05, "band": "high", "token_count": 120, "human_label": "good"}
+{"event": "worker_delegated", "ts": "2026-06-20T09:04:50Z", "source": "translate", "logprobs_available": true, "mean_logprob": -0.83, "score": -1.18, "band": "high", "token_count": 73, "human_label": "good"}
+{"event": "worker_delegated", "ts": "2026-06-20T09:05:59Z", "source": "rewrite", "logprobs_available": true, "mean_logprob": -0.95, "score": -1.31, "band": "high", "token_count": 60, "human_label": "good"}
+{"event": "worker_delegated", "ts": "2026-06-20T09:07:10Z", "source": "summarize", "logprobs_available": true, "mean_logprob": -1.12, "score": -1.49, "band": "high", "token_count": 95, "human_label": "good"}
+{"event": "worker_delegated", "ts": "2026-06-20T09:08:21Z", "source": "extract", "logprobs_available": true, "mean_logprob": -1.28, "score": -1.71, "band": "mid", "token_count": 40, "human_label": "good"}
+{"event": "worker_delegated", "ts": "2026-06-20T09:09:30Z", "source": "rewrite", "logprobs_available": true, "mean_logprob": -1.44, "score": -1.96, "band": "mid", "token_count": 58, "human_label": "good"}
+{"event": "worker_delegated", "ts": "2026-06-20T09:10:41Z", "source": "translate", "logprobs_available": true, "mean_logprob": -1.61, "score": -2.18, "band": "mid", "token_count": 66, "human_label": "good"}
+{"event": "worker_delegated", "ts": "2026-06-20T09:11:52Z", "source": "summarize", "logprobs_available": true, "mean_logprob": -1.83, "score": -2.44, "band": "mid", "token_count": 102, "human_label": "good"}
+{"event": "worker_delegated", "ts": "2026-06-20T09:13:03Z", "source": "extract", "logprobs_available": true, "mean_logprob": -2.05, "score": -2.71, "band": "mid", "token_count": 47, "human_label": "bad"}
+{"event": "worker_delegated", "ts": "2026-06-20T09:14:14Z", "source": "rewrite", "logprobs_available": true, "mean_logprob": -2.42, "score": -3.12, "band": "mid", "token_count": 39, "human_label": "bad"}
+{"event": "worker_delegated", "ts": "2026-06-20T09:15:25Z", "source": "translate", "logprobs_available": true, "mean_logprob": -3.18, "score": -3.74, "band": "low", "token_count": 31, "human_label": "bad"}
+{"event": "worker_delegated", "ts": "2026-06-20T09:16:36Z", "source": "extract", "logprobs_available": true, "mean_logprob": -3.71, "score": -4.33, "band": "low", "token_count": 28, "human_label": "bad"}
+{"event": "worker_delegated", "ts": "2026-06-20T09:17:47Z", "source": "summarize", "logprobs_available": true, "mean_logprob": -4.26, "score": -4.95, "band": "low", "token_count": 22, "human_label": "bad"}
+{"event": "worker_delegated", "ts": "2026-06-20T09:18:58Z", "source": "summarize", "logprobs_available": true, "mean_logprob": -0.29, "score": -0.43, "band": "high", "token_count": 71}
+{"event": "worker_delegated", "ts": "2026-06-20T09:20:09Z", "source": "rewrite", "logprobs_available": true, "mean_logprob": -0.51, "score": -0.77, "band": "high", "token_count": 84}
+{"event": "worker_delegated", "ts": "2026-06-20T09:21:20Z", "source": "translate", "logprobs_available": true, "mean_logprob": -1.05, "score": -1.42, "band": "high", "token_count": 59}
+{"event": "worker_delegated", "ts": "2026-06-20T09:22:31Z", "source": "extract", "logprobs_available": true, "mean_logprob": -1.55, "score": -2.07, "band": "mid", "token_count": 44}
+{"event": "worker_delegated", "ts": "2026-06-20T09:23:42Z", "source": "summarize", "logprobs_available": true, "mean_logprob": -2.21, "score": -2.88, "band": "mid", "token_count": 90}
+{"event": "worker_delegated", "ts": "2026-06-20T09:24:53Z", "source": "rewrite", "logprobs_available": true, "mean_logprob": -3.44, "score": -4.02, "band": "low", "token_count": 26}
+{"event": "worker_delegated", "ts": "2026-06-20T09:26:04Z", "source": "translate", "logprobs_available": false, "mean_logprob": null, "score": null, "band": "mid", "token_count": 0}
+{"event": "worker_delegated", "ts": "2026-06-20T09:27:15Z", "source": "extract", "logprobs_available": false, "mean_logprob": null, "score": null, "band": "mid", "token_count": 0}
+{"event": "other_event", "ts": "2026-06-20T09:28:26Z", "source": "noise", "logprobs_available": true, "mean_logprob": -9.99, "score": -9.99, "band": "low", "token_count": 3}
