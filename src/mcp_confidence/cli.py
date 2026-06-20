@@ -199,10 +199,34 @@ def _build_parser() -> argparse.ArgumentParser:
     return parser
 
 
+def _normalize_argv(argv: list[str] | None) -> list[str]:
+    """Join ``--logprobs <value>`` into the ``--logprobs=<value>`` form.
+
+    A value like ``-0.2,-0.1`` starts with ``-``; argparse before Python 3.13
+    mistakes it for an option flag and rejects it ("expected one argument").
+    Rewriting to the ``--opt=value`` form is accepted on every supported Python
+    version and lets users pass the value with a plain space on the real CLI.
+    """
+    if argv is None:
+        import sys
+
+        argv = sys.argv[1:]
+    out: list[str] = []
+    i = 0
+    while i < len(argv):
+        if argv[i] == "--logprobs" and i + 1 < len(argv):
+            out.append(f"--logprobs={argv[i + 1]}")
+            i += 2
+        else:
+            out.append(argv[i])
+            i += 1
+    return out
+
+
 def main(argv: list[str] | None = None) -> int:
     """Entry point. Returns a process exit code; console_scripts wraps it."""
     parser = _build_parser()
-    args = parser.parse_args(argv)
+    args = parser.parse_args(_normalize_argv(argv))
     return args.func(args)
 
 
