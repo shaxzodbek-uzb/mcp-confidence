@@ -8,7 +8,6 @@
 
 <p align="center">
   <a href="https://pypi.org/project/mcp-confidence/"><img src="https://img.shields.io/pypi/v/mcp-confidence.svg" alt="PyPI version"></a>
-  <a href="https://github.com/shaxzodbek-uzb/mcp-confidence/actions/workflows/ci.yml"><img src="https://github.com/shaxzodbek-uzb/mcp-confidence/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue.svg" alt="MIT License"></a>
   <img src="https://img.shields.io/badge/python-3.10%20%7C%203.11%20%7C%203.12%20%7C%203.13-3776AB?logo=python&logoColor=white" alt="Python 3.10+">
 </p>
