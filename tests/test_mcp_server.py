@@ -78,6 +78,7 @@ def test_payload_keys_complete():
     p = mcp_server.build_confidence_payload("x", openai_dict([-0.2]), CFG)
     assert set(p) == {
         "text",
+        "signal",
         "band",
         "score",
         "mean_logprob",
@@ -87,6 +88,13 @@ def test_payload_keys_complete():
         "should_verify",
         "should_ask_human",
     }
+
+
+def test_payload_omits_consistency_keys_when_it_did_not_run():
+    """The fallback fields appear only when the fallback actually produced a signal."""
+    p = mcp_server.build_confidence_payload("x", openai_dict([-0.2]), CFG)
+    assert "agreement" not in p
+    assert p["signal"] == "logprobs"
 
 
 def test_payload_object_response_matches_dict():

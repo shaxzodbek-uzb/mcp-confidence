@@ -24,8 +24,17 @@ class GateConfig:
     min_token_floor: clamp applied to the worst per-token logprob.
     top_k:           top_logprobs to request from the OpenAI-compatible server.
 
-    Raises ValueError if high_threshold <= low_threshold or min_weight is outside
-    [0, 1].
+    The self-consistency fallback (:mod:`mcp_confidence.consistency`) has its own
+    thresholds, on a completely different scale — agreement in [0, 1], not nats.
+    They are separate fields precisely so nobody mistakes one for the other, and
+    they are PROVISIONAL GUESSES too.
+
+    high_agreement:  agreement >= this -> HIGH. Default 0.8 (GUESS).
+    low_agreement:   agreement <= this -> LOW. Default 0.5 (GUESS).
+    samples:         how many completions to sample for a consistency check.
+
+    Raises ValueError if either high threshold is not above its low counterpart,
+    if min_weight is outside [0, 1], or if samples < 2.
     """
 
     high_threshold: float = -1.5
@@ -33,6 +42,9 @@ class GateConfig:
     min_weight: float = 0.3
     min_token_floor: float = -10.0
     top_k: int = 5
+    high_agreement: float = 0.8
+    low_agreement: float = 0.5
+    samples: int = 5
 
     def __post_init__(self) -> None:
         if self.high_threshold <= self.low_threshold:
@@ -42,15 +54,29 @@ class GateConfig:
             )
         if not (0.0 <= self.min_weight <= 1.0):
             raise ValueError(f"min_weight must be in [0, 1], got {self.min_weight}")
+        if self.high_agreement <= self.low_agreement:
+            raise ValueError(
+                f"high_agreement ({self.high_agreement}) must be > "
+                f"low_agreement ({self.low_agreement})"
+            )
+        for name in ("high_agreement", "low_agreement"):
+            value = getattr(self, name)
+            if not (0.0 <= value <= 1.0):
+                raise ValueError(f"{name} must be in [0, 1], got {value}")
+        if self.samples < 2:
+            # One sample cannot disagree with itself; a "consistency" check over a
+            # single completion would report a fabricated 1.0.
+            raise ValueError(f"samples must be >= 2, got {self.samples}")
 
     @classmethod
     def from_env(cls, prefix: str = "MCP_CONFIDENCE_") -> GateConfig:
         """Build a GateConfig from environment variables.
 
         Reads ``{prefix}HIGH_THRESHOLD``, ``{prefix}LOW_THRESHOLD``,
-        ``{prefix}MIN_WEIGHT``, ``{prefix}MIN_TOKEN_FLOOR`` and ``{prefix}TOP_K``
-        from ``os.environ``. Any missing variable falls back to the field
-        default. Validation still runs via ``__post_init__``.
+        ``{prefix}MIN_WEIGHT``, ``{prefix}MIN_TOKEN_FLOOR``, ``{prefix}TOP_K``,
+        ``{prefix}HIGH_AGREEMENT``, ``{prefix}LOW_AGREEMENT`` and
+        ``{prefix}SAMPLES`` from ``os.environ``. Any missing variable falls back to
+        the field default. Validation still runs via ``__post_init__``.
         """
         defaults = cls()
 
@@ -68,4 +94,7 @@ class GateConfig:
             min_weight=_float("MIN_WEIGHT", defaults.min_weight),
             min_token_floor=_float("MIN_TOKEN_FLOOR", defaults.min_token_floor),
             top_k=_int("TOP_K", defaults.top_k),
+            high_agreement=_float("HIGH_AGREEMENT", defaults.high_agreement),
+            low_agreement=_float("LOW_AGREEMENT", defaults.low_agreement),
+            samples=_int("SAMPLES", defaults.samples),
         )

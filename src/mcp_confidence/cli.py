@@ -11,18 +11,24 @@ Subcommands::
         Quick sanity check: band + score + mean_logprob for a literal logprob
         list, using either default thresholds or GateConfig.from_env().
 
+    mcp-confidence consistency "positive" "positive" "neutral" [--method auto]
+        Band repeated samples of one prompt, for models that never return
+        logprobs. With no positional samples, reads one answer per line from
+        stdin. Measures stability, not correctness.
+
     mcp-confidence serve [--transport stdio]
         Start the MCP server so a cloud director can delegate generation to a
         local OpenAI-compatible worker and get a confidence band back. The heavy
         ``mcp`` / ``openai`` extras are imported lazily inside this command only.
 
-This module imports with ZERO third-party dependencies; ``calibrate`` and
-``score`` run with no extras installed. ``serve`` lazy-imports the server.
+This module imports with ZERO third-party dependencies; ``calibrate``, ``score``
+and ``consistency`` run with no extras installed. ``serve`` lazy-imports the server.
 """
 
 from __future__ import annotations
 
 import argparse
+import sys
 
 from . import calibrate as calib
 from .config import GateConfig
@@ -125,6 +131,28 @@ def _cmd_score(args: argparse.Namespace) -> int:
     return 0
 
 
+def _cmd_consistency(args: argparse.Namespace) -> int:
+    if args.samples:
+        samples = list(args.samples)
+    else:
+        # One answer per line, so multi-word samples don't need quoting or escaping.
+        samples = [line for line in sys.stdin.read().splitlines() if line.strip()]
+
+    if len(samples) < 2:
+        print("need at least 2 samples; one cannot disagree with itself")
+        return 2
+
+    config = GateConfig.from_env() if args.config_from_env else GateConfig()
+    result = Gate(config).from_samples(samples, method=args.method)
+    print(f"band        {result.band.value}")
+    print(f"agreement   {result.agreement:.4f}")
+    print(f"method      {result.method}")
+    print(f"n_samples   {result.n_samples}")
+    if result.modal_answer is not None:
+        print(f"modal       {result.modal_count}x  {result.modal_answer!r}")
+    return 0
+
+
 def _cmd_serve(args: argparse.Namespace) -> int:
     from . import mcp_server
 
@@ -184,6 +212,28 @@ def _build_parser() -> argparse.ArgumentParser:
         help="read thresholds from MCP_CONFIDENCE_* env vars instead of defaults",
     )
     p_score.set_defaults(func=_cmd_score)
+
+    p_consistency = sub.add_parser(
+        "consistency",
+        help="band repeated samples of one prompt (for models without logprobs)",
+    )
+    p_consistency.add_argument(
+        "samples",
+        nargs="*",
+        help="the sampled answers; with none given, reads one answer per line from stdin",
+    )
+    p_consistency.add_argument(
+        "--method",
+        choices=["auto", "exact", "similarity"],
+        default="auto",
+        help="auto picks exact for short answers, similarity for prose (default: auto)",
+    )
+    p_consistency.add_argument(
+        "--config-from-env",
+        action="store_true",
+        help="read thresholds from MCP_CONFIDENCE_* env vars instead of defaults",
+    )
+    p_consistency.set_defaults(func=_cmd_consistency)
 
     p_serve = sub.add_parser(
         "serve",

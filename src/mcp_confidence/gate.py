@@ -12,16 +12,43 @@ likely to have:
 
 All paths apply this gate's thresholds and weights and return a
 :class:`~mcp_confidence.core.ConfidenceResult`.
+
+For models that never expose logprobs, :meth:`Gate.from_samples` scores repeated
+samples of the same prompt instead, and :meth:`Gate.assess` combines the two: it
+prefers logprobs and falls back to self-consistency only when they are missing —
+which is the case the core gate could previously only answer with a blanket MID.
 """
 
 from __future__ import annotations
 
 from collections.abc import Sequence
+from dataclasses import dataclass
 
-from . import core
+from . import consistency, core
 from .adapters.openai import to_provider_details
 from .config import GateConfig
-from .core import ConfidenceResult
+from .consistency import ConsistencyResult
+from .core import ConfidenceBand, ConfidenceResult
+
+
+@dataclass(frozen=True, slots=True)
+class Assessment:
+    """A band plus the evidence behind it.
+
+    The two signals live on unrelated scales — mean logprob in nats versus agreement
+    in [0, 1] — so they are never averaged or compared. ``signal`` records which one
+    actually decided the band, and both sub-results are kept for logging.
+
+    band:        The routing decision: HIGH / MID / LOW.
+    signal:      ``"logprobs"``, ``"self-consistency"``, or ``"none"``.
+    logprobs:    The logprob result, when one was computed.
+    consistency: The self-consistency result, when one was computed.
+    """
+
+    band: ConfidenceBand
+    signal: str
+    logprobs: ConfidenceResult | None = None
+    consistency: ConsistencyResult | None = None
 
 
 class Gate:
@@ -74,3 +101,61 @@ class Gate:
     def from_dict(self, pd: dict | None) -> ConfidenceResult:
         """Alias of :meth:`from_provider_details`."""
         return self.from_provider_details(pd)
+
+    def from_samples(self, samples: Sequence[str], *, method: str = "auto") -> ConsistencyResult:
+        """Score repeated samples of one prompt with this gate's agreement thresholds.
+
+        The fallback signal for models that don't return logprobs. Sampling is the
+        caller's job: run the same prompt ``config.samples`` times at a non-zero
+        temperature and pass the answers here.
+
+        Remember what it measures — *stability*, not correctness. A model that is
+        confidently wrong the same way five times scores HIGH.
+        """
+        return consistency.score(
+            samples,
+            method=method,
+            high_agreement=self.config.high_agreement,
+            low_agreement=self.config.low_agreement,
+        )
+
+    def assess(
+        self,
+        *,
+        provider_details: dict | None = None,
+        samples: Sequence[str] | None = None,
+        method: str = "auto",
+    ) -> Assessment:
+        """Band a response from whichever signal is available.
+
+        Logprobs win when present: they are free, they need one sample, and they
+        reflect what the model actually computed. Self-consistency is the fallback
+        for endpoints that strip logprobs — the case where the core gate can only
+        return a conservative MID that tells you nothing.
+
+        With neither signal the band is MID and ``signal`` is ``"none"``, so a caller
+        can tell "the model was unsure" apart from "we never measured anything".
+        """
+        logprob_result = (
+            self.from_provider_details(provider_details) if provider_details is not None else None
+        )
+        if logprob_result is not None and logprob_result.logprobs_available:
+            return Assessment(band=logprob_result.band, signal="logprobs", logprobs=logprob_result)
+
+        consistency_result = (
+            self.from_samples(samples, method=method) if samples is not None else None
+        )
+        if consistency_result is not None and consistency_result.n_samples >= 2:
+            return Assessment(
+                band=consistency_result.band,
+                signal="self-consistency",
+                logprobs=logprob_result,
+                consistency=consistency_result,
+            )
+
+        return Assessment(
+            band=ConfidenceBand.MID,
+            signal="none",
+            logprobs=logprob_result,
+            consistency=consistency_result,
+        )
