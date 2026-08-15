@@ -20,3 +20,6 @@ htmlcov/
 
 # OS / editor
 .DS_Store
+
+# uv
+uv.lock

@@ -13,11 +13,23 @@ Quick start::
     gate = Gate(GateConfig())
     result = gate.from_logprobs([-0.2, -0.5, -0.1])
     print(result.band, result.score)
+
+When the endpoint strips logprobs, sample the prompt a few times instead::
+
+    result = gate.from_samples(["positive", "positive", "neutral"])
+    print(result.band, result.agreement)
 """
 
 from __future__ import annotations
 
 from .config import GateConfig
+from .consistency import (
+    ConsistencyResult,
+    classify_agreement,
+    exact_agreement,
+    similarity_agreement,
+)
+from .consistency import score as consistency_score
 from .core import (
     UNAVAILABLE,
     ConfidenceBand,
@@ -29,14 +41,20 @@ from .core import (
     mean_logprob,
     min_logprob,
 )
-from .gate import Gate
+from .gate import Assessment, Gate
 
 __version__ = "0.1.0"
 
 __all__ = [
     "ConfidenceBand",
     "ConfidenceResult",
+    "ConsistencyResult",
+    "Assessment",
     "UNAVAILABLE",
+    "consistency_score",
+    "classify_agreement",
+    "exact_agreement",
+    "similarity_agreement",
     "compute",
     "classify",
     "combined_score",

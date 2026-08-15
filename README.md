@@ -31,7 +31,8 @@ The naive approach — "average the token probabilities, accept above 0.95" — 
 1. **Band in mean-logprob (nats) space, not probability.** Thresholds live in log space where the score actually separates, instead of an `exp()`-compressed `[0, 1]` that bunches everything near zero.
 2. **A weakest-link term with a floor.** The score mixes the mean with the *worst* per-token logprob (`min_weight=0.3` by default), clamped to a floor (`-10.0`) so one ultra-rare token — a numeric ID, an unusual name — can't collapse the score of an otherwise solid answer.
 3. **Per-model calibration tooling.** Bundled risk-coverage analysis turns a log of real traffic into the thresholds *your* model needs, instead of you guessing again.
-4. **A 3-band decision, not a number.** The output is a routing band you can branch on — accept, verify, or ask a human — with a conservative default: when logprobs are missing, the band is **MID**, never blind auto-accept.
+4. **A 3-band decision, not a number.** The output is a routing band you can branch on — accept, verify, or ask a human — with a conservative default: with no signal at all the band is **MID**, never blind auto-accept.
+5. **A fallback for models that give you nothing.** Plenty of endpoints strip `logprobs`. Rather than shrugging with a permanent MID, the gate can band those on [self-consistency](#when-the-model-wont-give-you-logprobs) — sample the prompt *n* times and measure agreement.
 
 > **The defaults are provisional guesses.** `HIGH=-1.5`, `LOW=-3.5` are starting points, not validated thresholds. Do not turn on auto-accept routing until you've recalibrated on your own model — see [The honest part](#the-honest-part-calibrate-before-you-trust-it).
 
@@ -255,9 +256,78 @@ The returned payload is JSON-serializable and decision-ready:
 }
 ```
 
-`should_verify` is true when the band is **MID** *or* logprobs were unavailable; `should_ask_human` is true when the band is **LOW**. A worker that doesn't emit logprobs degrades gracefully to MID with `should_verify=true` — the director is never told to blindly trust a blind signal.
+`should_verify` is true when the band is **MID** *or* no signal was measured at all; `should_ask_human` is true when the band is **LOW**. The payload's `signal` field says which signal produced the band, so the director is never told to blindly trust a blind signal.
 
-The gate logic for this lives in a pure, dependency-free helper, `mcp_confidence.mcp_server.build_confidence_payload(text, openai_response, config)`, so you can unit-test the whole decision with a dict fixture and no `mcp`/`openai` installed. `import mcp_confidence.mcp_server` never requires the extras — they're imported lazily inside `run()`, only when you actually serve.
+A worker that emits no logprobs degrades to MID by default. Set `MCP_CONFIDENCE_CONSISTENCY_FALLBACK=1` and the server instead re-samples the prompt (`MCP_CONFIDENCE_SAMPLES`, default 5, at `MCP_CONFIDENCE_SAMPLE_TEMPERATURE`) and bands it on [agreement](#when-the-model-wont-give-you-logprobs). It's opt-in because it multiplies token cost by *n* — worth it when the alternative is a band that carries no information, and not otherwise.
+
+The server also exposes **`score_consistency(samples, method)`**: pure scoring of answers the director already sampled from any model. No generation, no cost.
+
+The gate logic for this lives in a pure, dependency-free helper, `mcp_confidence.mcp_server.build_confidence_payload(text, openai_response, config, samples=None)`, so you can unit-test the whole decision with a dict fixture and no `mcp`/`openai` installed. `import mcp_confidence.mcp_server` never requires the extras — they're imported lazily inside `run()`, only when you actually serve.
+
+## When the model won't give you logprobs
+
+Logprobs are the better signal — free, one sample, and a direct read of what the model
+computed. But plenty of endpoints never expose them: most hosted reasoning models,
+several managed gateways, anything that strips `logprobs`. There the gate can only return
+a conservative **MID**, which is safe and tells you nothing.
+
+The fallback is to ask the same question a few times and measure **how much the answers
+agree with each other**:
+
+```python
+from mcp_confidence import Gate
+
+gate = Gate()
+
+gate.from_samples(["positive", "Positive.", "POSITIVE"]).band     # HIGH — unanimous
+gate.from_samples(["positive", "negative", "neutral"]).band       # LOW  — scattered
+```
+
+Or let the gate pick the signal for you — logprobs when they're there, agreement when
+they're not:
+
+```python
+a = gate.assess(provider_details=pd, samples=samples)
+a.band      # the routing decision, as usual
+a.signal    # "logprobs" | "self-consistency" | "none"
+```
+
+`signal` matters: `"none"` means *nothing was measured*, which is a different situation
+from *the model was unsure*, and you probably want to handle it differently.
+
+Two comparison modes, chosen automatically by answer length:
+
+| Mode | Used for | Measures |
+|---|---|---|
+| `exact` | ≤ 4 words — labels, numbers, dates, extractions | share of samples matching the modal answer |
+| `similarity` | anything longer | mean pairwise token-sequence similarity |
+
+The split is deliberate. On a classification, `"42"` and `"43"` are *completely* different
+answers and fuzzy matching would call them half-equal. On prose, two correct paraphrases
+must not read as total disagreement. Pass `method="exact"` or `method="similarity"` when
+you know better than the heuristic.
+
+```bash
+mcp-confidence consistency "positive" "positive" "neutral"
+# band        mid
+# agreement   0.6667
+# method      exact
+# modal       2x  'positive'
+```
+
+### What this signal is not
+
+- **It is not correctness.** It measures *stability*. A model that is confidently wrong
+  the same way five times scores HIGH. Self-consistency catches a model being unsure; it
+  cannot catch a model being consistently wrong.
+- **It is not comparable to the logprob score.** Agreement lives in `[0, 1]`, the logprob
+  score in nats. Never average or compare them — `assess()` picks one signal, it does not
+  blend them.
+- **It is not free.** It costs *n* completions instead of one. That's the price of a
+  confidence signal on a model that won't give you its logprobs.
+- **The thresholds are guesses too.** `HIGH_AGREEMENT=0.8` / `LOW_AGREEMENT=0.5` are
+  starting points, exactly as provisional as the logprob defaults. Agreement distributions
+  depend on your model, your temperature, your *n*, and your task. Recalibrate.
 
 ## How it compares
 
@@ -269,7 +339,7 @@ The closest existing package is [`llm-confidence`](https://pypi.org/project/llm-
 | Output | 3-band routing decision (accept / verify / ask-a-human) | Per-key confidence scores |
 | Scoring | Mean **+ weakest-link** in logprob (nats) space, with a floor | Per-field probability aggregation |
 | Calibration tooling | Yes — distribution + labeled risk-coverage sweep | Not included |
-| Missing-logprobs handling | Conservative MID + `should_verify` | n/a |
+| Missing-logprobs handling | Self-consistency fallback, else conservative MID | n/a |
 | Local / open models | First-class (vLLM, Ollama, llama.cpp, TGI) | OpenAI-oriented |
 | MCP server | Yes — manager–worker delegation | No |
 | Runtime dependencies | Zero for the core | — |
@@ -281,7 +351,7 @@ Different tools for different jobs: reach for `llm-confidence` when you're scori
 Clearly future, **not yet implemented**:
 
 - **Supervisor / verify MCP tool** — a semantic groundedness check for the MID band (does the answer actually follow from the source?), so "verify" becomes an automated second opinion rather than just a flag.
-- **Self-consistency sampling** — use the `top_logprobs` already captured per token (currently untouched) to estimate agreement across alternatives.
+- **Per-token alternative agreement** — use the `top_logprobs` already captured per token (still untouched) to measure agreement *within* one sample. Note this is not a substitute for [self-consistency](#when-the-model-wont-give-you-logprobs), which is now implemented: `top_logprobs` requires logprobs, so it cannot help the models that don't return any.
 - **Verbalized confidence** — blend the model's own stated confidence with the logprob signal.
 - **Learned calibrator** — fit a small model on labeled audit logs instead of a single threshold pair.
 
